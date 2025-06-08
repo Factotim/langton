@@ -9,10 +9,12 @@ class LangtonsAnt {
             y: Math.floor(canvas.height / (2 * this.cellSize)),
             direction: 0 // 0: up, 1: right, 2: down, 3: left
         };
+        this.previousAnt = { ...this.ant }; // Track previous ant position
         this.steps = 0;
         this.isRunning = false;
         this.animationId = null;
         this.speed = 50;
+        this.modifiedCells = new Set(); // Track all modified cells during updates
 
         this.initializeGrid();
         this.setupEventListeners();
@@ -69,9 +71,11 @@ class LangtonsAnt {
             y: Math.floor(this.canvas.height / (2 * this.cellSize)),
             direction: 0
         };
+        this.previousAnt = { ...this.ant };
+        this.modifiedCells.clear();
         this.steps = 0;
         document.getElementById('stepCount').textContent = this.steps;
-        this.draw();
+        this.draw(true); // Force full redraw on reset
     }
 
     animate() {
@@ -88,11 +92,17 @@ class LangtonsAnt {
     }
 
     update() {
+        // Store previous ant position
+        this.previousAnt = { ...this.ant };
+
         // Get current cell state
         const currentCell = this.grid[this.ant.y][this.ant.x];
 
         // Flip the color
         this.grid[this.ant.y][this.ant.x] = currentCell === 0 ? 1 : 0;
+        
+        // Add the modified cell to our set
+        this.modifiedCells.add(`${this.ant.y},${this.ant.x}`);
 
         // Turn the ant
         if (currentCell === 0) {
@@ -123,12 +133,36 @@ class LangtonsAnt {
         document.getElementById('stepCount').textContent = this.steps;
     }
 
-    draw() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Draw the grid
-        for (let y = 0; y < this.grid.length; y++) {
-            for (let x = 0; x < this.grid[y].length; x++) {
+    draw(forceFullRedraw = false) {
+        if (forceFullRedraw) {
+            // Clear the entire canvas and redraw everything
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Draw all cells
+            for (let y = 0; y < this.grid.length; y++) {
+                for (let x = 0; x < this.grid[y].length; x++) {
+                    if (this.grid[y][x] === 1) {
+                        this.ctx.fillStyle = '#2c3e50';
+                        this.ctx.fillRect(
+                            x * this.cellSize,
+                            y * this.cellSize,
+                            this.cellSize,
+                            this.cellSize
+                        );
+                    }
+                }
+            }
+        } else {
+            // Clear and redraw all modified cells
+            for (const cellKey of this.modifiedCells) {
+                const [y, x] = cellKey.split(',').map(Number);
+                this.ctx.clearRect(
+                    x * this.cellSize,
+                    y * this.cellSize,
+                    this.cellSize,
+                    this.cellSize
+                );
+                
                 if (this.grid[y][x] === 1) {
                     this.ctx.fillStyle = '#2c3e50';
                     this.ctx.fillRect(
@@ -139,9 +173,12 @@ class LangtonsAnt {
                     );
                 }
             }
+            
+            // Clear the set of modified cells after drawing
+            this.modifiedCells.clear();
         }
 
-        // Draw the ant
+        // Draw the ant at its current position
         this.ctx.fillStyle = '#e74c3c';
         this.ctx.fillRect(
             this.ant.x * this.cellSize,
